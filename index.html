@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>FaceFind • Retrouvez vos photos</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  
+  :root {
+    --bg: #0a0a1a;
+    --bg-2: #13132a;
+    --card: rgba(255,255,255,0.06);
+    --card-border: rgba(255,255,255,0.1);
+    --text: #ffffff;
+    --text-dim: rgba(255,255,255,0.6);
+    --text-faint: rgba(255,255,255,0.35);
+    --accent: #a855f7;
+    --accent-2: #ec4899;
+    --accent-3: #06b6d4;
+    --success: #10b981;
+    --gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f59e0b 100%);
+    --gradient-2: linear-gradient(135deg, #06b6d4 0%, #a855f7 100%);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overscroll-behavior: none;
+  }
+  
+  body {
+    position: fixed;
+    width: 100%;
+    background: 
+      radial-gradient(circle at 20% 10%, rgba(168,85,247,0.25) 0%, transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(236,72,153,0.2) 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, rgba(6,182,212,0.1) 0%, transparent 50%),
+      var(--bg);
+    animation: bgShift 20s ease infinite;
+  }
+  
+  @keyframes bgShift {
+    0%, 100% { background-position: 0% 0%, 100% 100%, 50% 50%; }
+    50% { background-position: 30% 20%, 70% 70%, 50% 50%; }
+  }
+  
+  /* ============ APP SHELL ============ */
+  .app {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  @media (min-width: 768px) {
+    body { padding: 20px; }
+    .app {
+      height: calc(100% - 40px);
+      border-radius: 32px;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 30px 80px rgba(168,85,247,0.2);
+      overflow: hidden;
+    }
+  }
+  
+  /* ============ STATUS BAR ============ */
+  .status-bar {
+    padding: calc(var(--safe-top) + 12px) 20px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .logo-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--gradient);
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s ease infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+  }
+  
+  /* ============ SCREENS ============ */
+  .screens {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .screen {
+    position: absolute;
+    inset: 0;
+    padding: 10px 20px 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    opacity: 0;
+    transform: translateX(30px);
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    scrollbar-width: none;
+  }
+  
+  .screen::-webkit-scrollbar { display: none; }
+  
+  .screen.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+  
+  .screen.exit-left {
+    transform: translateX(-30px);
+  }
+  
+  /* ============ BOTTOM NAV ============ */
+  .bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 16px calc(var(--safe-bottom) + 10px);
+    background: rgba(10,10,26,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--card-border);
+    flex-shrink: 0;
+  }
+  
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 8px;
+    cursor: pointer;
+    transition: color 0.2s;
+    position: relative;
+  }
+  
+  .nav-btn svg {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  .nav-btn.active {
+    color: var(--text);
+  }
+  
+  .nav-btn.active svg {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 8px var(--accent));
+  }
+  
+  .nav-btn.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 3px;
+    background: var(--gradient);
+    border-radius: 0 0 3px 3px;
+  }
+  
+  .nav-btn:active svg {
+    transform: scale(0.9);
+  }
+  
+  /* ============ HOME SCREEN ============ */
+  .hero {
+    text-align: center;
+    padding: 20px 0 30px;
+    animation: fadeUp 0.6s ease;
+  }
+  
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 100px;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  
+  .hero-badge .dot {
+    width: 6px;
+    height: 6px;
+    background: var(--success);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--success);
+  }
+  
+  .hero h1 {
+    font-size: 2.2rem;
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+  
+  .hero h1 .gradient {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline-block;
+  }
+  
+  .hero p {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+  
+  /* Visual orb */
+  .orb-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 30px auto;
+  }
+  
+  .orb {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--gradient);
+    filter: blur(40px);
+    opacity: 0.5;
+    animation: orbFloat 6s ease-in-out infinite;
+  }
+  
+  @keyframes orbFloat {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.1) rotate(180deg); }
+  }
+  
+  .orb-core {
+    position: absolute;
+    inset: 30px;
+    border-radius: 50%;
+    background: var(--bg-2);
+    border: 1px solid var(--card-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    animation: coreFloat 4s ease-in-out infinite;
+    box-shadow: 
+      inset 0 0 40px rgba(168,85,247,0.3),
+      0 0 60px rgba(168,85,247,0.2);
+  }
+  
+  @keyframes coreFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  .orb-ring {
+    position: absolute;
+    inset: -20px;
+    border: 1px dashed rgba(168,85,247,0.3);
+    border-radius: 50%;
+    animation: rotate 20s linear infinite;
+  }
+  
+  .orb-ring::before, .orb-ring::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent);
+  }
+  
+  .orb-ring::before { top: -4px; left: 50%; }
+  .orb-ring::after { bottom: -4px; right: 20%; }
+  
+  @keyframes rotate {
+    to { transform: rotate(360deg); }
+  }
+  
+  /* Steps */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+  }
+  
+  .step-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    transition: transform 0.2s;
+  }
+  
+  .step-card:active { transform: scale(0.98); }
+  
+  .step-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(168,85,247,0.3);
+  }
+  
+  .step-text h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  
+  .step-text p {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+  
+  /* Primary CTA */
+  .cta-btn {
+    width: 100%;
+    padding: 18px;
+    background: var(--gradient);
+    border: none;
+    border-radius: 16px;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(168,85,247,0.4);
+    transition: transform 0.2s;
+    margin-top: 10px;
+  }
+  
+  .cta-btn:active { transform: scale(0.97); }
+  
+  .cta-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    animation: shine 3s infinite;
+  }
+  
+  @keyframes shine {
+    to { transform: translateX(100%); }
+  }
+  
+  .cta-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* ============ CAMERA SCREEN ============ */
+  .camera-screen {
+    padding: 0 !important;
+    background: #000;
+  }
+  
+  .camera-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: calc(var(--safe-top) + 16px) 20px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+  }
+  
+  .close-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  
+  .camera-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+  }
+  
+  .camera-view {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .face-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 260px;
+    height: 320px;
+    pointer-events: none;
+  }
+  
+  .face-guide-svg {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .face-guide-svg ellipse {
+    fill: none;
+    stroke: rgba(255,255,255,0.4);
+    stroke-width: 2;
+    stroke-dasharray: 8 6;
+    animation: dashMove 2s linear infinite;
+  }
+  
+  @keyframes dashMove {
+    to { stroke-dashoffset: -28; }
+  }
+  
+  .face-guide-svg.ready ellipse {
+    stroke: var(--success);
+    stroke-dasharray: none;
+    animation: readyPulse 1.5s ease infinite;
+  }
+  
+  @keyframes readyPulse {
+    0%, 100% { stroke-width: 2; opacity: 1; }
+    50% { stroke-width: 4; opacity: 0.7; }
+  }
+  
+  .camera-hint {
+    position: absolute;
+    bottom: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 18px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(10px);
+    border-radius: 100px;
+    font-size: 0.85rem;
+    color: #fff;
+    white-space: nowrap;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  
+  .camera-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px 20px calc(var(--safe-bottom) + 30px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  }
+  
+  .shutter {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: #fff;
+    border: 4px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.1s;
+  }
+  
+  .shutter::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: #fff;
+    transition: background 0.2s;
+  }
+  
+  .shutter:active { transform: scale(0.92); }
+  .shutter:active::before { background: #ddd; }
+  
+  .shutter.flash::before {
+    animation: flash 0.3s;
+  }
+  
+  @keyframes flash {
+    0% { background: #fff; }
+    50% { background: #ffeb3b; box-shadow: 0 0 60px #ffeb3b; }
+    100% { background: #fff; }
+  }
+  
+  .switch-cam {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  
+  /* ============ ANALYSIS SCREEN ============ */
+  .analysis-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px !important;
+  }
+  
+  .scan-orb {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    margin-bottom: 40px;
+  }
+  
+  .scan-orb .orb {
+    filter: blur(50px);
+  }
+  
+  .scan-orb .orb-core {
+    inset: 20px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  
+  .scan-orb .orb-core img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  
+  .scan-line {
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent-3), transparent);
+    box-shadow: 0 0 20px var(--accent-3);
+    border-radius: 2px;
+    animation: scanLine 2s ease-in-out infinite;
+  }
+  
+  @keyframes scanLine {
+    0%, 100% { top: 20px; }
+    50% { top: calc(100% - 23px); }
+  }
+  
+  .scan-orb .orb-ring {
+    inset: -10px;
+    border-color: rgba(6,182,212,0.4);
+  }
+  
+  .analysis-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  
+  .analysis-subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 30px;
+    min-height: 20px;
+  }
+  
+  .progress-container {
+    width: 100%;
+    max-width: 320px;
+  }
+  
+  .progress-track {
+    width: 100%;
+    height: 6px;
+    background: var(--card);
+    border-radius: 100px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: var(--gradient-2);
+    border-radius: 100px;
+    width: 0%;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 10px var(--accent-3);
+  }
+  
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+  
+  .progress-label strong {
+    color: var(--text);
+  }
+  
+  /* ============ RESULTS SCREEN ============ */
+  .results-header {
+    padding: 10px 0 20px;
+  }
+  
+  .results-title {
+    font-size: 1.8rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  
+  .results-title .emoji {
+    display: inline-block;
+    animation: wave 1.5s ease infinite;
+    transform-origin: 70% 70%;
+  }
+  
+  @keyframes wave {
+    0%, 100% { transform: rotate(0); }
+    25% { transform: rotate(20deg); }
+    75% { transform: rotate(-15deg); }
+  }
+  
+  .results-subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  
+  .results-subtitle strong {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+  }
+  
+  /* Selfie card */
+  .selfie-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+  }
+  
+  .selfie-card img {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid transparent;
+    background: var(--gradient) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+  
+  .selfie-info { flex: 1; }
+  .selfie-info h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .selfie-info p {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+  
+  .selfie-change {
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--card-border);
+    border-radius: 100px;
+    color: var(--text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  
+  /* Gallery */
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding-bottom: 20px;
+  }
+  
+  .photo-card {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--card);
+    animation: cardIn 0.5s ease backwards;
+  }
+  
+  .photo-card:nth-child(3n+1) { animation-delay: 0.05s; }
+  .photo-card:nth-child(3n+2) { animation-delay: 0.1s; }
+  .photo-card:nth-child(3n+3) { animation-delay: 0.15s; }
+  
+  @keyframes cardIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  .photo-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s;
+  }
+  
+  .photo-card:active img { transform: scale(0.95); }
+  
+  .match-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 4px 10px;
+    background: rgba(16,185,129,0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .match-badge::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 6px #fff;
+  }
+  
+  .download-btn {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  .photo-card:hover .download-btn,
+  .photo-card:active .download-btn { opacity: 1; }
+  
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  
+  .empty-icon {
+    font-size: 4rem;
+    margin-bottom: 16px;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  .empty-state h3 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+  }
+  
+  .empty-state p {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  
+  /* ============ BOTTOM SHEET / MODAL ============ */
+  .sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  
+  .sheet-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  .bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 500px;
+    margin: 0 auto;
+    background: var(--bg-2);
+    border-radius: 24px 24px 0 0;
+    z-index: 101;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .bottom-sheet.active {
+    transform: translateY(0);
+  }
+  
+  @media (min-width: 768px) {
+    .bottom-sheet {
+      border-radius: 24px;
+      bottom: 20px;
+      max-height: 80vh;
+    }
+  }
+  
+  .sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 100px;
+    margin: 12px auto 0;
+  }
+  
+  .sheet-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    scrollbar-width: none;
+  }
+  
+  .sheet-content::-webkit-scrollbar { display: none; }
+  
+  .sheet-image {
+    width: 100%;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    background: var(--card);
+  }
+  
+  .sheet-actions {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px calc(var(--safe-bottom) + 16px);
+    border-top: 1px solid var(--card-border);
+  }
+  
+  .sheet-btn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 14px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .sheet-btn.primary {
+    background: var(--gradient);
+    color: #fff;
+  }
+  
+  .sheet-btn.secondary {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--card-border);
+  }
+  
+  /* ============ TOAST ============ */
+  .toast {
+    position: fixed;
+    top: calc(var(--safe-top) + 20px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    padding: 12px 20px;
+    background: rgba(20,20,40,0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 100px;
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    z-index: 200;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+  }
+  
+  /* ============ CONFETTI ============ */
+  .confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    z-index: 150;
+    animation: confettiFall 3s linear forwards;
+  }
+  
+  @keyframes confettiFall {
+    0% { transform: translateY(-100vh) rotate(0); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+  
+  /* ============ UTILS ============ */
+  .hidden { display: none !important; }
+  
+  /* Admin floating button */
+  .admin-fab {
+    position: absolute;
+    top: calc(var(--safe-top) + 14px);
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    font-size: 1rem;
+  }
+  
+  .admin-panel {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 16px;
+    backdrop-filter: blur(10px);
+    animation: fadeUp 0.3s ease;
+  }
+  
+  .admin-panel h4 {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .admin-panel p {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  
+  .admin-panel .file-btn {
+    width: 100%;
+    padding: 12px;
+    background: rgba(168,85,247,0.15);
+    border: 1px dashed rgba(168,85,247,0.4);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .admin-count {
+    margin-top: 10px;
+    font-size: 0.75rem;
+    color: var(--success);
+    text-align: center;
+  }
+  
+  #file-input { display: none; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="logo">
+      <span class="logo-dot"></span>
+      <span>FaceFind</span>
+    </div>
+    <div style="font-size:0.7rem;">19 Août 2026</div>
+  </div>
+  
+  <!-- Screens container -->
+  <div class="screens">
+    
+    <!-- HOME -->
+    <div class="screen active" id="screen-home">
+      <button class="admin-fab" onclick="toggleAdmin()" title="Mode photographe">⚙️</button>
+      
+      <div class="hero">
+        <div class="hero-badge">
+          <span class="dot"></span>
+          <span>Événement actif</span>
+        </div>
+        <h1>Retrouvez <span class="gradient">vos photos</span> en un selfie</h1>
+        <p>Prenez un selfie et notre IA retrouve automatiquement toutes les photos où vous apparaissez</p>
+      </div>
+      
+      <div class="orb-container">
+        <div class="orb"></div>
+        <div class="orb-ring"></div>
+        <div class="orb-core">📸</div>
+      </div>
+      
+      <div class="steps">
+        <div class="step-card">
+          <div class="step-icon">🤳</div>
+          <div class="step-text">
+            <h4>Prenez un selfie</h4>
+            <p>Positionnez votre visage dans le cadre</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">🧠</div>
+          <div class="step-text">
+            <h4>Analyse IA</h4>
+            <p>Reconnaissance faciale instantanée</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">✨</div>
+          <div class="step-text">
+            <h4>Téléchargez</h4>
+            <p>Récupérez toutes vos photos</p>
+          </div>
+        </div>
+      </div>
+      
+      <div id="admin-panel" class="admin-panel hidden">
+        <h4>📷 Mode Photographe</h4>
+        <p>Ajoutez les photos de l'événement pour que les invités les retrouvent.</p>
+        <input type="file" id="file-input" accept="image/*" multiple>
+        <button class="file-btn" onclick="document.getElementById('file-input').click()">
+          📁 Sélectionner des photos
+        </button>
+        <div class="admin-count" id="admin-count"></div>
+      </div>
+      
+      <button class="cta-btn" onclick="startCapture()">
+        <span>Commencer la recherche</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M5 12h14M13 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- CAMERA -->
+    <div class="screen camera-screen" id="screen-camera">
+      <div class="camera-header">
+        <button class="close-btn" onclick="goHome()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+        <div class="camera-title">Votre selfie</div>
+        <div style="width:40px;"></div>
+      </div>
+      
+      <div class="camera-view">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas-capture" style="display:none;"></canvas>
+        
+        <div class="face-guide" id="face-guide">
+          <svg class="face-guide-svg" viewBox="0 0 260 320">
+            <ellipse cx="130" cy="160" rx="100" ry="130"/>
+          </svg>
+        </div>
+        
+        <div class="camera-hint" id="camera-hint">💡 Centrez votre visage</div>
+      </div>
+      
+      <div class="camera-controls">
+        <button class="switch-cam" onclick="switchCamera()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 16v4a2 2 0 01-2 2h-4M4 8V4a2 2 0 012-2h4M14 20h6a2 2 0 002-2v-4M4 14v6a2 2 0 002 2h4"/>
+            <path d="M16 4l4 4-4 4M8 20l-4-4 4-4"/>
+          </svg>
+        </button>
+        <button class="shutter" id="shutter" onclick="capturePhoto()"></button>
+        <div style="width:44px;"></div>
+      </div>
+    </div>
+    
+    <!-- ANALYSIS -->
+    <div class="screen analysis-screen" id="screen-analysis">
+      <div class="scan-orb">
+        <div class="orb"></div>
+        <div class="orb-ring"></div>
+        <div class="orb-core">
+          <img id="scan-selfie" src="" alt="">
+          <div class="scan-line"></div>
+        </div>
+      </div>
+      
+      <h2 class="analysis-title">Analyse en cours</h2>
+      <p class="analysis-subtitle" id="analysis-text">Préparation de l'IA...</p>
+      
+      <div class="progress-container">
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-label">
+          <span id="progress-step">Initialisation</span>
+          <strong id="progress-percent">0%</strong>
+        </div>
+      </div>
+    </div>
+    
+    <!-- RESULTS -->
+    <div class="screen" id="screen-results">
+      <div class="results-header">
+        <h1 class="results-title">
+          <span class="emoji">🎉</span> Vos photos
+        </h1>
+        <p class="results-subtitle" id="results-subtitle">
+          <strong>0 photo</strong> trouvée
+        </p>
+      </div>
+      
+      <div class="selfie-card">
+        <img id="selfie-preview" src="" alt="">
+        <div class="selfie-info">
+          <h4>Votre recherche</h4>
+          <p>Cliquez sur une photo pour la voir</p>
+        </div>
+        <button class="selfie-change" onclick="startCapture()">Changer</button>
+      </div>
+      
+      <div id="gallery-container"></div>
+    </div>
+    
+  </div>
+  
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-screen="screen-home" onclick="navTo('screen-home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10"/>
+      </svg>
+      <span>Accueil</span>
+    </button>
+    <button class="nav-btn" onclick="startCapture()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <span>Scanner</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-results" onclick="navTo('screen-results')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      <span>Galerie</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Bottom Sheet -->
+<div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+<div class="bottom-sheet" id="bottom-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-content">
+    <img class="sheet-image" id="sheet-image" src="" alt="">
+  </div>
+  <div class="sheet-actions">
+    <button class="sheet-btn secondary" onclick="closeSheet()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 6L6 18M6 6l12 12"/>
+      </svg>
+      Fermer
+    </button>
+    <a class="sheet-btn primary" id="sheet-download" download="photo.jpg">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+      </svg>
+      Télécharger
+    </a>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span id="toast-icon">✓</span>
+  <span id="toast-text">Message</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+<script>
+// ============ STATE ============
+let stream = null;
+let selfieDescriptor = null;
+let selfieDataURL = null;
+let eventPhotos = [];
+let modelsLoaded = false;
+let currentScreen = 'screen-home';
+let facingMode = 'user';
+
+const DEMO_PHOTOS = [
+  'https://images.unsplash.com/photo-1511578314322-379afb476865?w=600',
+  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600',
+  'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=600',
+  'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600',
+  'https://images.unsplash.com/photo-1505236858219-8359eb29e329?w=600',
+  'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600',
+  'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=600',
+  'https://images.unsplash.com/photo-1519741497674-611481863552?w=600'
+];
+
+// ============ NAVIGATION ============
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    if (s.id === currentScreen && s.id !== id) {
+      s.classList.remove('active');
+      s.classList.add('exit-left');
+      setTimeout(() => s.classList.remove('exit-left'), 400);
+    }
+  });
+  setTimeout(() => {
+    document.getElementById(id).classList.add('active');
+  }, 50);
+  currentScreen = id;
+  
+  // Update nav
+  document.querySelectorAll('.nav-btn[data-screen]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.screen === id);
+  });
+}
+
+function navTo(id) {
+  if (id === 'screen-results' && !selfieDataURL) {
+    showToast('📸', 'Prenez d\'abord un selfie');
+    return;
+  }
+  showScreen(id);
+}
+
+function goHome() {
+  stopCamera();
+  showScreen('screen-home');
+}
+
+// ============ TOAST ============
+function showToast(icon, text) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-text').textContent = text;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ============ ADMIN ============
+function toggleAdmin() {
+  document.getElementById('admin-panel').classList.toggle('hidden');
+}
+
+document.getElementById('file-input').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      eventPhotos.push({ url: ev.target.result, name: file.name });
+      loaded++;
+      if (loaded === files.length) {
+        document.getElementById('admin-count').textContent = 
+          `✅ ${eventPhotos.length} photo${eventPhotos.length > 1 ? 's' : ''} chargée${eventPhotos.length > 1 ? 's' : ''}`;
+        showToast('✓', `${files.length} photo(s) ajoutée(s)`);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+});
+
+// ============ CAMERA ============
+async function startCapture() {
+  try {
+    showScreen('screen-camera');
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facingMode, width: { ideal: 720 }, height: { ideal: 960 } }
+    });
+    document.getElementById('video').srcObject = stream;
+  } catch (err) {
+    showToast('⚠️', 'Caméra indisponible');
+    setTimeout(() => showScreen('screen-home'), 1500);
+  }
+}
+
+async function switchCamera() {
+  facingMode = facingMode === 'user' ? 'environment' : 'user';
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+  }
+  await startCapture();
+}
+
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+}
+
+async function capturePhoto() {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas-capture');
+  const shutter = document.getElementById('shutter');
+  
+  // Flash effect
+  shutter.classList.add('flash');
+  setTimeout(() => shutter.classList.remove('flash'), 300);
+  
+  // Vibration
+  if (navigator.vibrate) navigator.vibrate(50);
+  
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  
+  selfieDataURL = canvas.toDataURL('image/jpeg', 0.9);
+  stopCamera();
+  
+  setTimeout(() => startAnalysis(), 400);
+}
+
+// ============ ANALYSIS ============
+async function loadModels() {
+  if (modelsLoaded) return;
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
+  updateProgress(5, 'Chargement des modèles IA...');
+  await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+  updateProgress(20, 'Modèles de reconnaissance...');
+  await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+  updateProgress(35, 'Presque prêt...');
+  await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+  modelsLoaded = true;
+}
+
+function updateProgress(percent, text, step) {
+  document.getElementById('progress-fill').style.width = percent + '%';
+  document.getElementById('progress-percent').textContent = percent + '%';
+  if (text) document.getElementById('analysis-text').textContent = text;
+  if (step) document.getElementById('progress-step').textContent = step;
+}
+
+async function startAnalysis() {
+  showScreen('screen-analysis');
+  document.getElementById('scan-selfie').src = selfieDataURL;
+  
+  try {
+    if (!modelsLoaded) await loadModels();
+    
+    updateProgress(40, 'Analyse de votre selfie...', 'Étape 1/2');
+    const selfieImg = await faceapi.fetchImage(selfieDataURL);
+    const selfieDetection = await faceapi
+      .detectSingleFace(selfieImg)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+    
+    if (!selfieDetection) {
+      showToast('😕', 'Aucun visage détecté');
+      setTimeout(() => showScreen('screen-home'), 1500);
+      return;
+    }
+    
+    selfieDescriptor = selfieDetection.descriptor;
+    document.getElementById('selfie-preview').src = selfieDataURL;
+    
+    updateProgress(55, 'Recherche dans les photos...', 'Étape 2/2');
+    
+    const photos = eventPhotos.length > 0 
+      ? eventPhotos 
+      : DEMO_PHOTOS.map((url, i) => ({ url, name: `demo_${i}.jpg` }));
+    
+    const matches = [];
+    const total = photos.length;
+    
+    for (let i = 0; i < total; i++) {
+      const photo = photos[i];
+      const progress = 55 + (i / total) * 40;
+      updateProgress(Math.round(progress), `Photo ${i + 1} / ${total}`, 'Recherche');
+      
+      try {
+        const img = await faceapi.fetchImage(photo.url);
+        const detections = await faceapi
+          .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptors();
+        
+        for (const detection of detections) {
+          const distance = faceapi.euclideanDistance(selfieDescriptor, detection.descriptor);
+          if (distance < 0.55) {
+            matches.push({
+              url: photo.url,
+              name: photo.name,
+              similarity: Math.round((1 - distance) * 100)
+            });
+            break;
+          }
+        }
+      } catch (e) { /* skip */ }
+      
+      // Small delay for visual feedback
+      await new Promise(r => setTimeout(r, 100));
+    }
+    
+    updateProgress(100, 'Terminé !', 'Terminé');
+    setTimeout(() => displayResults(matches), 600);
+    
+  } catch (err) {
+    console.error(err);
+    showToast('⚠️', 'Erreur d\'analyse');
+    setTimeout(() => showScreen('screen-home'), 1500);
+  }
+}
+
+// ============ RESULTS ============
+function displayResults(matches) {
+  showScreen('screen-results');
+  
+  const container = document.getElementById('gallery-container');
+  const subtitle = document.getElementById('results-subtitle');
+  
+  if (matches.length === 0) {
+    subtitle.innerHTML = '<strong>0 photo</strong> trouvée';
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <h3>Aucune photo trouvée</h3>
+        <p>Votre visage n'a pas été détecté dans les photos de l'événement. Essayez avec un autre selfie !</p>
+      </div>
+    `;
+    return;
+  }
+  
+  subtitle.innerHTML = `<strong>${matches.length} photo${matches.length > 1 ? 's' : ''}</strong> trouvée${matches.length > 1 ? 's' : ''}`;
+  
+  let html = '<div class="gallery">';
+  matches.forEach((match, idx) => {
+    html += `
+      <div class="photo-card" onclick="openSheet('${match.url}')" style="animation-delay:${idx * 0.05}s">
+        <img src="${match.url}" alt="" loading="lazy">
+        <div class="match-badge">${match.similarity}%</div>
+        <button class="download-btn" onclick="event.stopPropagation(); downloadPhoto('${match.url}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+        </button>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+  
+  // Confetti !
+  if (matches.length >= 3) launchConfetti();
+  else showToast('✨', `${matches.length} photo(s) trouvée(s)`);
+}
+
+// ============ BOTTOM SHEET ============
+function openSheet(url) {
+  document.getElementById('sheet-image').src = url;
+  document.getElementById('sheet-download').href = url;
+  document.getElementById('sheet-backdrop').classList.add('active');
+  document.getElementById('bottom-sheet').classList.add('active');
+}
+
+function closeSheet() {
+  document.getElementById('sheet-backdrop').classList.remove('active');
+  document.getElementById('bottom-sheet').classList.remove('active');
+}
+
+function downloadPhoto(url) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'photo.jpg';
+  a.target = '_blank';
+  a.click();
+  showToast('⬇️', 'Téléchargement lancé');
+}
+
+// ============ CONFETTI ============
+function launchConfetti() {
+  const colors = ['#a855f7', '#ec4899', '#f59e0b', '#06b6d4', '#10b981'];
+  for (let i = 0; i < 60; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.animationDelay = Math.random() * 0.5 + 's';
+    c.style.animationDuration = (2 + Math.random() * 2) + 's';
+    c.style.width = c.style.height = (6 + Math.random() * 8) + 'px';
+    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 4000);
+  }
+  showToast('🎉', `${document.querySelectorAll('.photo-card').length} photos trouvées !`);
+}
+
+// ============ INIT ============
+window.addEventListener('load', () => {
+  loadModels().catch(() => {});
+});
+
+// Prevent pull-to-refresh
+document.body.addEventListener('touchmove', (e) => {
+  if (e.target.closest('.screen') || e.target.closest('.sheet-content')) return;
+  e.preventDefault();
+}, { passive: false });
+</script>
+
+</body>
+</html>
