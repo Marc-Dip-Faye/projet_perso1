@@ -2,24 +2,22 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#1B1523">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Reflet — Retrouve-toi dans la foule</title>
   
-  <!-- Polices élégantes et légères -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   
-  <!-- Moteur de reconnaissance faciale (version moderne et stable) -->
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
-  
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="phone">
-  <!-- Status Bar -->
   <div class="statusbar">
     <span>9:41</span>
     <span class="statusbar__icons">•••</span>
@@ -55,67 +53,24 @@
         <h2>Tes événements</h2>
         <span class="block__count" id="event-count">Chargement...</span>
       </div>
-      <div class="event-prompt" id="event-prompt" role="status" aria-live="polite" hidden>
+      
+      <div class="event-prompt" id="event-prompt" hidden>
         <span class="event-prompt__icon">◈</span>
         <div class="event-prompt__content">
           <strong>Choisis ton événement</strong>
           <p>Sélectionne un événement pour lancer le scanner.</p>
           <button class="event-prompt__link" id="event-prompt-link" type="button">Voir les événements <span aria-hidden="true">↓</span></button>
         </div>
-        <button class="event-prompt__close" id="event-prompt-close" type="button" aria-label="Fermer le message">×</button>
+        <button class="event-prompt__close" id="event-prompt-close" type="button" aria-label="Fermer">×</button>
       </div>
-      <div id="events-list">
-        <!-- Injecté par JS -->
-      </div>
-    </section>
-  </main>
-
-  <!-- ===================== ÉCRAN ÉVÉNEMENTS ===================== -->
-  <main class="screen" id="screen-evenements" aria-hidden="true">
-    <header class="topbar">
-      <span class="topbar__title">Événements</span>
-      <span class="block__count">3 disponibles</span>
-    </header>
-
-    <section class="block">
-      <div class="block__head">
-        <h2>Choisis ton événement</h2>
-        <span class="block__count">Photos</span>
-      </div>
-      <div id="events-list-page">
-        <article class="event-card" data-event-id="mariage-aida-moussa">
-          <div class="event-card__media" style="background-image:url('https://picsum.photos/seed/mariage-aida-moussa/240/240')"></div>
-          <div class="event-card__body">
-            <h3>Mariage — Aïda &amp; Moussa</h3>
-            <p>Photographe · Ibou Sarr Studio</p>
-            <p class="event-card__meta">248 photos publiées</p>
-          </div>
-          <span class="event-card__badge">Nouveau</span>
-        </article>
-        <article class="event-card" data-event-id="anniv-fatou">
-          <div class="event-card__media" style="background-image:url('https://picsum.photos/seed/anniv-fatou/240/240')"></div>
-          <div class="event-card__body">
-            <h3>Anniversaire — 30 ans de Fatou</h3>
-            <p>Photographe · Click Dakar</p>
-            <p class="event-card__meta">126 photos publiées</p>
-          </div>
-          <span class="event-card__badge">Nouveau</span>
-        </article>
-        <article class="event-card event-card--pending" data-event-id="bapteme-diallo">
-          <div class="event-card__media" style="background-image:url('https://picsum.photos/seed/bapteme-diallo/240/240')"></div>
-          <div class="event-card__body">
-            <h3>Baptême — Famille Diallo</h3>
-            <p>Photographe · N'Deye Photo</p>
-            <p class="event-card__meta">Traitement en cours…</p>
-          </div>
-        </article>
-      </div>
+      
+      <div id="events-list"></div>
     </section>
   </main>
 
   <!-- ===================== ÉCRAN SCAN ===================== -->
   <main class="screen" id="screen-scan" aria-hidden="true">
-    <header class="topbar topbar--scan">
+    <header class="topbar">
       <button class="iconbtn" id="btn-back-scan" aria-label="Retour">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -138,7 +93,7 @@
       </div>
       <canvas id="camera-canvas" hidden></canvas>
 
-      <p class="viewfinder-status" id="viewfinder-status">Positionne-toi face à la caméra, en pleine lumière.</p>
+      <p class="viewfinder-status" id="viewfinder-status">Positionne-toi face à la caméra.</p>
 
       <div class="progress" id="progress" hidden>
         <div class="progress__bar" id="progress-bar"></div>
@@ -173,9 +128,16 @@
       <p class="results-sub">Triées par ressemblance faciale (IA)</p>
     </section>
 
-    <div class="results-grid" id="results-grid">
-      <!-- Injecté par JS -->
+    <!-- État vide (quand 0 photo) -->
+    <div class="empty-state" id="empty-state" hidden>
+      <div class="empty-state__icon">🔍</div>
+      <h3 class="empty-state__title">Aucune correspondance</h3>
+      <p class="empty-state__text">Ton visage n'a pas été détecté dans les photos de cet événement. Essaie avec un autre selfie, mieux éclairé et de face.</p>
+      <button class="cta cta--ghost" id="btn-retry" style="margin-top: 20px; width: auto; padding: 12px 24px;">Réessayer</button>
     </div>
+
+    <!-- Grille de résultats -->
+    <div class="results-grid" id="results-grid"></div>
 
     <button class="cta cta--ghost" id="btn-download-all" style="margin: 0 22px 30px;">Tout télécharger</button>
   </main>
@@ -186,9 +148,9 @@
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9h12v-9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>Accueil</span>
     </button>
-    <button class="tab" data-goto="screen-evenements">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-      <span>Événements</span>
+    <button class="tab" data-goto="screen-scan">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M4 8V6.5A2.5 2.5 0 0 1 6.5 4H8M16 4h1.5A2.5 2.5 0 0 1 20 6.5V8M20 16v1.5a2.5 2.5 0 0 1-2.5 2.5H16M8 20H6.5A2.5 2.5 0 0 1 4 17.5V16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span>Scanner</span>
     </button>
     <button class="tab" data-goto="screen-resultats">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="4" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="13" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.7"/></svg>

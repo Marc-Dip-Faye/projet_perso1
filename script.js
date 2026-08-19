@@ -2,8 +2,6 @@
    REFLET — Logique principale (Vraie reconnaissance faciale)
    ========================================================= */
 
-// ---- 1. DONNÉES (Simulation de data.json) ----
-// En production, remplacez ceci par : fetch('data.json').then(res => res.json())
 const APP_DATA = {
   events: [
     {
@@ -51,23 +49,8 @@ let modelsLoaded = false;
 // ---- 2. INITIALISATION ----
 document.addEventListener("DOMContentLoaded", () => {
   renderEvents();
-  bindStaticEventCards();
-  loadModels(); // Précharge l'IA en arrière-plan
+  loadModels();
 });
-
-function bindStaticEventCards() {
-  document.querySelectorAll("#events-list-page .event-card").forEach(card => {
-    const event = APP_DATA.events.find(item => item.id === card.dataset.eventId);
-    if (!event || event.status === "pending") return;
-
-    card.addEventListener("click", () => {
-      currentEvent = event;
-      resetScanScreen();
-      goTo("screen-scan");
-      startCamera();
-    });
-  });
-}
 
 function renderEvents() {
   const list = document.getElementById("events-list");
@@ -83,7 +66,6 @@ function renderEvents() {
     card.className = `event-card ${isPending ? "event-card--pending" : ""}`;
     card.dataset.eventId = event.id;
     
-    // Image aléatoire cohérente basée sur l'ID pour la démo
     const thumbUrl = `https://picsum.photos/seed/${event.id}/240/240`;
     
     card.innerHTML = `
@@ -113,12 +95,17 @@ function renderEvents() {
 // ---- 3. NAVIGATION ----
 function goTo(screenId) {
   document.querySelectorAll(".screen").forEach(s => {
-    s.setAttribute("aria-hidden", s.id !== screenId);
+    if (s.id === screenId) {
+      s.setAttribute("aria-hidden", "false");
+      s.scrollTop = 0; // 🛡️ Scroll en haut de l'écran actif
+    } else {
+      s.setAttribute("aria-hidden", "true");
+    }
   });
+  
   document.querySelectorAll(".tab").forEach(t => {
     t.setAttribute("aria-current", t.dataset.goto === screenId);
   });
-  document.querySelector(".phone").scrollTop = 0;
 }
 
 document.querySelectorAll(".tab").forEach(tab => {
@@ -126,34 +113,22 @@ document.querySelectorAll(".tab").forEach(tab => {
     const isAccueilVisible = document.getElementById("screen-accueil").getAttribute("aria-hidden") === "false";
 
     if (tab.dataset.goto === "screen-scan" && isAccueilVisible) {
-      showEventSelectionPrompt();
+      document.getElementById("event-prompt").hidden = false;
+      document.getElementById("events-list").scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
     if (tab.dataset.goto !== "screen-scan") stopCamera();
     goTo(tab.dataset.goto);
-
-    if (tab.dataset.focus === "events") {
-      eventsList.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
   });
 });
 
-const eventPrompt = document.getElementById("event-prompt");
-const eventsList = document.getElementById("events-list");
-
-function showEventSelectionPrompt() {
-  eventPrompt.hidden = false;
-  eventsList.scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
 document.getElementById("event-prompt-link").addEventListener("click", () => {
-  eventPrompt.hidden = true;
-  goTo("screen-evenements");
+  document.getElementById("event-prompt").hidden = true;
 });
 
 document.getElementById("event-prompt-close").addEventListener("click", () => {
-  eventPrompt.hidden = true;
+  document.getElementById("event-prompt").hidden = true;
 });
 
 document.getElementById("btn-scan").addEventListener("click", () => {
@@ -169,6 +144,12 @@ document.getElementById("btn-back-scan").addEventListener("click", () => {
 
 document.getElementById("btn-back-results").addEventListener("click", () => {
   goTo("screen-accueil");
+});
+
+document.getElementById("btn-retry").addEventListener("click", () => {
+  resetScanScreen();
+  goTo("screen-scan");
+  startCamera();
 });
 
 // ---- 4. CAMÉRA ----
@@ -235,7 +216,6 @@ document.getElementById("capture-btn").addEventListener("click", () => {
   canvas.height = size;
   const ctx = canvas.getContext("2d");
   
-  // Recadrage carré centré + effet miroir
   const sx = (video.videoWidth - size) / 2;
   const sy = (video.videoHeight - size) / 2;
   ctx.translate(size, 0);
@@ -271,13 +251,11 @@ async function runScanSequence(imgUrl) {
   document.getElementById("capture-btn").disabled = true;
   document.getElementById("progress").hidden = false;
 
-  // 1. Attendre que les modèles soient chargés
   if (!modelsLoaded) {
-    document.getElementById("viewfinder-status").textContent = "Chargement des modèles IA (1/4)...";
+    document.getElementById("viewfinder-status").textContent = "Chargement des modèles IA...";
     await loadModels();
   }
 
-  // 2. Analyser le selfie
   document.getElementById("viewfinder-status").textContent = ANALYSIS_STEPS[0];
   document.getElementById("progress-bar").style.width = "25%";
   
@@ -295,7 +273,6 @@ async function runScanSequence(imgUrl) {
     document.getElementById("viewfinder-status").textContent = ANALYSIS_STEPS[2];
     document.getElementById("progress-bar").style.width = "50%";
 
-    // 3. Comparer avec les photos de l'événement
     const matches = [];
     const totalPhotos = currentEvent.photos.length;
     
@@ -310,27 +287,22 @@ async function runScanSequence(imgUrl) {
           .withFaceDescriptors();
 
         for (const det of detections) {
-          // Distance euclidienne : plus c'est bas, plus c'est similaire. Seuil typique < 0.6
           const distance = faceapi.euclideanDistance(selfieDescriptor, det.descriptor);
           if (distance < 0.55) {
             const score = Math.round((1 - distance) * 100);
             matches.push({ url: photoUrl, score: Math.min(score, 99) });
-            break; // Une seule correspondance par photo suffit
+            break;
           }
         }
       } catch (e) {
         console.warn("Erreur analyse photo", e);
       }
       
-      // Mise à jour visuelle de la barre
       const progress = 50 + ((i + 1) / totalPhotos) * 50;
       document.getElementById("progress-bar").style.width = `${progress}%`;
-      
-      // Petit délai pour laisser l'UI se mettre à jour
       await new Promise(r => setTimeout(r, 50));
     }
 
-    // 4. Afficher les résultats
     document.getElementById("progress-bar").style.width = "100%";
     setTimeout(() => {
       buildResults(matches);
@@ -346,24 +318,31 @@ async function runScanSequence(imgUrl) {
   }
 }
 
-// ---- 6. RÉSULTATS & LIGHTBOX ----
+// ---- 6. RÉSULTATS & LIGHTBOX (CORRIGÉ) ----
 function buildResults(matches) {
   document.getElementById("results-event").textContent = currentEvent.name.toUpperCase();
   document.getElementById("results-number").textContent = matches.length;
   
   const grid = document.getElementById("results-grid");
+  const emptyState = document.getElementById("empty-state");
+  const downloadBtn = document.getElementById("btn-download-all");
+  
   grid.innerHTML = "";
 
-  // Trier par score décroissant
-  matches.sort((a, b) => b.score - a.score);
-
   if (matches.length === 0) {
-    grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px 20px; color:var(--lavender);">
-      <p style="font-size:2rem; margin-bottom:12px;">🔍</p>
-      <p>Aucune correspondance trouvée.<br>Essaie avec un autre selfie.</p>
-    </div>`;
+    // 🛡️ Affichage propre de l'état vide sans casser la grille
+    grid.style.display = "none";
+    emptyState.hidden = false;
+    downloadBtn.style.display = "none";
     return;
   }
+
+  // Affichage de la grille
+  grid.style.display = "grid";
+  emptyState.hidden = true;
+  downloadBtn.style.display = "flex";
+
+  matches.sort((a, b) => b.score - a.score);
 
   matches.forEach((photo, i) => {
     const card = document.createElement("button");
@@ -417,7 +396,6 @@ document.getElementById("btn-download-all").addEventListener("click", function()
 // ---- 7. CHARGEMENT DES MODÈLES IA ----
 async function loadModels() {
   if (modelsLoaded) return;
-  // Utilisation des modèles hébergés sur CDN (vladmandic est plus stable et à jour)
   const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/";
   try {
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
