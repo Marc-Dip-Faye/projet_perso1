@@ -1,0 +1,38 @@
+{
+  "events": [
+    {
+      "id": "mariage-aida-moussa",
+      "name": "Mariage — Aïda & Moussa",
+      "photographer": "Ibou Sarr Studio",
+      "status": "published",
+      "photoCount": 248,
+      "photos": [
+        "https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=750&fit=crop",
+        "https://images.unsplash.com/photo-1511578314322-379afb476865?w=600&h=750&fit=crop",
+        "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&h=750&fit=crop",
+        "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=600&h=750&fit=crop",
+        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&h=750&fit=crop",
+        "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=600&h=750&fit=crop"
+      ]
+    },
+    {
+      "id": "anniv-fatou",
+      "name": "Anniversaire — 30 ans de Fatou",
+      "photographer": "Click Dakar",
+      "status": "published",
+      "photoCount": 126,
+      "photos": [
+        "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=600&h=750&fit=crop",
+        "https://images.unsplash.com/photo-1505236858219-8359eb29e329?w=600&h=750&fit=crop"
+      ]
+    },
+    {
+      "id": "bapteme-diallo",
+      "name": "Baptême — Famille Diallo",
+      "photographer": "N'Deye Photo",
+      "status": "pending",
+      "photoCount": 0,
+      "photos": []
+    }
+  ]
+}
