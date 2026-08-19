@@ -4,7 +4,7 @@
 
 // ---- 1. DONNÉES (Simulation de data.json) ----
 // En production, remplacez ceci par : fetch('data.json').then(res => res.json())
-const FALLBACK_DATA = {
+const APP_DATA = {
   events: [
     {
       id: "mariage-aida-moussa",
@@ -43,34 +43,17 @@ const FALLBACK_DATA = {
   ]
 };
 
-let APP_DATA = FALLBACK_DATA;
 let currentEvent = APP_DATA.events[0];
 let mediaStream = null;
 let selfieDescriptor = null;
 let modelsLoaded = false;
 
 // ---- 2. INITIALISATION ----
-document.addEventListener("DOMContentLoaded", async () => {
-  await loadAppData();
+document.addEventListener("DOMContentLoaded", () => {
   renderEvents();
   bindStaticEventCards();
   loadModels(); // Précharge l'IA en arrière-plan
 });
-
-async function loadAppData() {
-  try {
-    const response = await fetch("./data.json", { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const data = await response.json();
-    if (!Array.isArray(data.events)) throw new Error("Format data.json invalide");
-
-    APP_DATA = data;
-    currentEvent = APP_DATA.events[0] || FALLBACK_DATA.events[0];
-  } catch (error) {
-    console.warn("Impossible de charger data.json, utilisation des données de secours.", error);
-  }
-}
 
 function bindStaticEventCards() {
   document.querySelectorAll("#events-list-page .event-card").forEach(card => {
